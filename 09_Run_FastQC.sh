@@ -1,4 +1,5 @@
 mkdir fastqc_slurm
+mkdir fastqc_out
 
 for f in $(ls *.realigned.bam | cut -f1-1 -d'.'| uniq)
 do
