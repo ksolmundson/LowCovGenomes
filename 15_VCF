@@ -1,0 +1,13 @@
+#!/bin/bash
+#SBATCH --account=def-jebowman
+#SBATCH --job-name=bcftools_MICH
+#SBATCH --mem 400M
+#SBATCH --time=00-02:59
+module load bcftools
+bcftools view MICH_35chr_finalgroup.angsd.bcf -Ov -o MICH_35chr_finalgroup.vcf
+
+bcftools view MICH_35chr_finalgroup.vcf -Oz -o MICH_35chr_finalgroup.vcf.gz
+
+bcftools index -t MICH_35chr_finalgroup.vcf.gz
+
+#this example for pop=MICH
