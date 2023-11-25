@@ -1,6 +1,6 @@
 mkdir ~/scratch/Analysis/Angsd/structure/ngsAdmix/admix_slurm
 
-for k in {2..7}
+for k in {2..8}
 do
-sbatch -o ./admix_slurm/${k}-%A.out 01_NGSadmix.bash ${k}
+sbatch -o ./admix_slurm/${k}-%A.out 13_NGSadmix.sh ${k}
 done
