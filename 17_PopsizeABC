@@ -216,7 +216,7 @@ ind_ld=nb_afs+(1:(nb_dist-1)) # the LD statistic corresponding to the shortest d
 ind_stat=c(ind_afs, ind_ld) # only AFS and LD statistics
 
 # abc
-abc_res_PUK=abc(obs[ind_stat],log10_pop(params)[,-1],stat[,ind_stat],tol=0.001,method="neuralnet") # a tolerance of order 0.001 would give much better results, but this would require more simulated samples.
+abc_res_PUK=abc(obs[ind_stat],log10_pop(params)[,-1],stat[,ind_stat],tol=0.001,method="neuralnet")
 abc_estim_PUK=summary(abc_res_PUK,print=FALSE)[3,] # median
 #abc_estim_PUK=summary(abc_res,print=FALSE)[5,] #
 
@@ -240,7 +240,7 @@ ind_ld=nb_afs+(1:(nb_dist-1)) # the LD statistic corresponding to the shortest d
 ind_stat=c(ind_afs, ind_ld) # only AFS and LD statistics
 
 # abc
-abc_res_MICH=abc(obs[ind_stat],log10_pop(params)[,-1],stat[,ind_stat],tol=0.001,method="neuralnet") # a tolerance of order 0.001 would give much better results, but this would require more simulated samples.
+abc_res_MICH=abc(obs[ind_stat],log10_pop(params)[,-1],stat[,ind_stat],tol=0.001,method="neuralnet")
 abc_estim_MICH=summary(abc_res_MICH,print=FALSE)[3,] # median
 #abc_estim=summary(abc_res,print=FALSE)[5,] # mode
 
@@ -263,7 +263,7 @@ ind_ld=nb_afs+(1:(nb_dist-1)) # the LD statistic corresponding to the shortest d
 ind_stat=c(ind_afs, ind_ld) # only AFS and LD statistics
 
 # abc
-abc_res_ON1=abc(obs[ind_stat],log10_pop(params)[,-1],stat[,ind_stat],tol=0.001,method="neuralnet") # a tolerance of order 0.001 would give much better results, but this would require more simulated samples.
+abc_res_ON1=abc(obs[ind_stat],log10_pop(params)[,-1],stat[,ind_stat],tol=0.001,method="neuralnet") 
 abc_estim_ON1=summary(abc_res_ON1,print=FALSE)[3,] # median
 #abc_estim=summary(abc_res,print=FALSE)[5,] # mode
 
@@ -287,7 +287,7 @@ ind_ld=nb_afs+(1:(nb_dist-1)) # the LD statistic corresponding to the shortest d
 ind_stat=c(ind_afs, ind_ld) # only AFS and LD statistics
 
 # abc
-abc_res_ON2=abc(obs[ind_stat],log10_pop(params)[,-1],stat[,ind_stat],tol=0.001,method="neuralnet") # a tolerance of order 0.001 would give much better results, but this would require more simulated samples.
+abc_res_ON2=abc(obs[ind_stat],log10_pop(params)[,-1],stat[,ind_stat],tol=0.001,method="neuralnet") 
 abc_estim_ON2=summary(abc_res_ON2,print=FALSE)[3,] # median
 #abc_estim=summary(abc_res,print=FALSE)[5,] # mode
 
@@ -310,7 +310,7 @@ ind_ld=nb_afs+(1:(nb_dist-1)) # the LD statistic corresponding to the shortest d
 ind_stat=c(ind_afs, ind_ld) # only AFS and LD statistics
 
 # abc
-abc_res_ON3=abc(obs[ind_stat],log10_pop(params)[,-1],stat[,ind_stat],tol=0.001,method="neuralnet") # a tolerance of order 0.001 would give much better results, but this would require more simulated samples.
+abc_res_ON3=abc(obs[ind_stat],log10_pop(params)[,-1],stat[,ind_stat],tol=0.001,method="neuralnet") 
 abc_estim_ON3=summary(abc_res_ON3,print=FALSE)[3,] # median
 #abc_estim=summary(abc_res,print=FALSE)[5,] # mode
 
