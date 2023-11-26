@@ -1,0 +1,14 @@
+#!/bin/bash
+#SBATCH --account=def-jebowman
+#SBATCH --job-name=splitVCF_MICH
+#SBATCH --mem 400M
+#SBATCH --time=00-02:59
+#SBATCH --cpus-per-task 2
+#SBATCH --mail-user=kirstensolmundson@trentu.ca
+#SBATCH --mail-type=ALL
+module load bcftools
+module load r
+Rscript splitVCFbyScaffold_git.R MICH_35chr_finalgroup.vcf splitVCF_allind/MICH
+
+#split VCF by scaffold using Rscript: https://github.com/jordanbemmels/kiwi-holocene/blob/main/PopSizeABC/splitVCFbyScaffold_git.R
+##here pop=MICH as an example
