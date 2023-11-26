@@ -1,0 +1,372 @@
+##I conducted demographic analyses in PopSizeABC: https://forge-dga.jouy.inra.fr/projects/popsizeabc
+#this program is python based and plots outputs in R
+#due to permission restrictions I cannot publicly share the core PopSizeABC code 
+#the python and R files can be downloaded from the provided links
+#below I describe the steps I took to modify the program, run the abc analyses, and plot the outputs
+
+#########################################################################################################
+################################  SECTION 1 - MODIFICATIONS #############################################
+#########################################################################################################
+##we modified the python files as recommended by: https://github.com/jordanbemmels/kiwi-holocene/blob/main/12_PopSizeABC_demography.md
+
+##summary of modifications:
+
+#general modifications to summary_stat.py
+Add hashes (#) at the beginning of the lines to comment out the if-statement beginning with if len(r2_list) < 2: (lines 160-182)
+
+#general modifications to stat_from_vcf.py 
+#calculation of d (final distance bin)
+### LINE 58
+d=10**8/(2*t)
+
+### NEW LINE
+d=1/(2*r*t)
+
+#process all scaffolds 
+### OLD LINES 90 [...] 93
+for chro in range(1,2):
+    [...]
+    infile_vcf='../cattle_data/Chr'+str(chro)+'.vcf.gz'
+
+### NEW LINES
+all_chromo=os.listdir('splitVCF/'+pop) # this allows processing all VCF files in the specified directory with this path, so that all scaffolds can be included
+for chro in range(len(all_chromo)):
+    [...]
+    infile_vcf='splitVCF/'+pop+'/'+all_chromo[chro]
+
+#read caribou pedigree
+### OLD LINE 95
+    IO.parsePedFile_nogeno('../cattle_data/indiv.ped',mydata)  
+
+### NEW LINES
+    IO.parsePedFile_nogeno('../caribou.ped',mydata) # There is a single pedigree file for all samples/pops
+	
+#parameter modifications to stat_from_vcf.py
+##here an example for MICH #with default time windows 
+
+################################################
+############### paramaters #####################
+################################################
+
+pop='MICH'
+list_ani=IO.read_list('/scratch/kirstens/final_ONlowcov/pcid_bams/LSbam.list') # list of diploid animals
+n=len(list_ani)*2 # haploid sample size
+mac=1 # minor allele count threshold for AFS and IBS statistics computation
+mac_ld=1 # minor allele count threshold for LD statistics computation
+L=2000000 # size of each segment, in bp.
+
+# time windows
+nb_times=21 # number of time window
+Tmax=130000 # the oldest time window will start at Tmax ## for more recent time windows change to 1000 ##
+a=0.06 # the length of time windows increases when time increases, at a speed that is determined by this coefficient
+
+# computation of time windows based on the above parameters
+times=-np.ones(shape=nb_times,dtype='float')
+for i in range(nb_times):
+    times[i]=(np.exp(np.log(1+a*Tmax)*i/(nb_times-1))-1)/a
+print "Population size changes at the following times (in generations):"
+print times
+print ""
+
+# LD statistics parameters
+per_err=5 # the length of each interval, as a percentage of the target distance
+r=10**(-8) # the per generation per bp recombination rate (an approximation is sufficient value)
+# creation of the bins of physical distance for which the average LD will be computed, based on the time windows defined above.
+interval_list=[]
+for i in range(nb_times-1):
+    t=(times[i+1]+times[i])/2
+    d=1/(2*r*t)
+    if d <= L:
+        interval_list.append([d-per_err*d/100,d+per_err*d/100])
+t=Tmax+times[nb_times-1]-times[nb_times-2]
+#d=10**8/(2*t)
+d=1/(2*r*t)
+interval_list.append([d-per_err*d/100,d+per_err*d/100])
+print "Average LD will be computed for the following distance bins (in bp) :"
+print interval_list
+print ""
+
+# IBS statistics parameters
+prob_list=[0.0001,0.001,0.01,0.1,0.25,0.5,0.75,0.9,0.99,0.999,0.9999] # quantiles used to summarize the distribution of IBS segment length
+size_list=[1] # number of diploid individuals that are used for to define IBS segments (several values can be concatenated)
+
+
+
+### ensure corresponding parameters in simul_data.py for each pop
+##here an example for MICH #with default time windows 
+
+################################################
+############### paramaters #####################
+################################################
+##KS add parameter for batch
+batch=sys.argv[1]
+# general parameters
+outfile_name='res/MICH/default_gentimes/defaultgen_batch'+batch # root of the output files
+nb_rep=1000 # number of simulated datasets
+nb_seg=100 # number of independent segments in each dataset
+L=2000000 # size of each segment, in bp.
+n=110 # haploid sample size
+mac=1 # minor allele count threshold for AFS and IBS statistics computation
+mac_ld=1 # minor allele count threshold for LD statistics computation
+save_msp=False # if this parameter is set to True, snp positions and haplotypes corresponding to the same dataset will be stored in a compressed tar file.
+              # this allows to keep and potentially re-use the exact genomic samples, rather than just the summary statistics,
+              # but this require high memory ressources (approx 1 Mo per simulated dataset, on average, with current parameter values).
+
+# time windows
+nb_times=21 # number of time windows
+Tmax=130000 # the oldest time window will start at Tmax
+a=0.06 # the length of time windows increases when time increases, at a speed that is determined by this coefficient
+# computation of time windows based on the above parameters
+times=-np.ones(shape=nb_times,dtype='float')
+for i in range(nb_times):
+    times[i]=(np.exp(np.log(1+a*Tmax)*i/(nb_times-1))-1)/a
+print "Population size changes at the following times (in generations):"
+print times
+print ""
+
+# prior distributions
+r_min=0.1*10**(-8) # lower bound for the per generation per bp recombination rate
+r_max=1*10**(-8) # upper bound for the per generation per bp recombination rate
+mmu=1*10**(-8) # per generation per bp mutation rate
+Nmin=1 # lower bound for the population size in each time window (in log10 scale)
+Nmax=5 # upper bound for the population size in each time window (in log10 scale)
+
+# LD statistics parameters
+per_err=5 # the length of each interval, as a percentage of the target distance
+r=10**(-8) # the per generation per bp recombination rate (an approximation is sufficient)
+# creation of the bins of physical distance for which the average LD will be computed, based on the time windows defined above
+interval_list=[]
+for i in range(nb_times-1):
+    t=(times[i+1]+times[i])/2
+    d=1/(2*r*t)
+    if d <= L:
+        interval_list.append([d-per_err*d/100,d+per_err*d/100])
+t=Tmax+times[nb_times-1]-times[nb_times-2]
+d=1/(2*r*t)
+interval_list.append([d-per_err*d/100,d+per_err*d/100])
+print "Average LD will be computed for the following distance bins (in bp) :"
+print interval_list
+print ""
+
+# IBS statistics parameters
+prob_list=[0.0001,0.001,0.01,0.1,0.25,0.5,0.75,0.9,0.99,0.999,0.9999] # quantiles used to summarize the distribution of IBS segment length
+size_list=[1] # number of diploid individuals that are used to define IBS segments (several values can be concatenated)
+
+
+#########################################################################################################
+################################  SECTION 2 - RUNNING POPSIZEABC ########################################
+#########################################################################################################
+
+## Calculate stats for each pop ## with python script stat_from_vcf.py 
+##here an example for MICH #with default time windows 
+python2 comp_stat1/stat_from_vcf_MICH_defaultgen.py > terminalOutput_MICH.txt
+
+## Generate simulated data ## with python script simul_data.py
+#run in virtual environment on CC to avoid complications with Python2 versus Python3
+#submit as batches (total = min 500000 per pop)
+##here an example for MICH #with default time windows 
+
+#!/bin/bash
+#SBATCH --account=def-jebowman
+#SBATCH --job-name=popsimMICH${1}
+#SBATCH --mem 4G
+#SBATCH --time=00-11:59
+
+source ENV/bin/activate
+module load StdEnv/2020
+module load scipy-stack/2020a
+module load python/2.7.18
+pip install msprime
+python2 comp_stat1/simul_data_MICH_defaultgen.py ${1} > terminaloutput_sim_MICHbatch${1}.txt
+sleep 5
+deactivate
+
+
+#########################################################################################################
+################################  SECTION 3 - PLOTTING POPSIZEABC #######################################
+#########################################################################################################
+
+#we modified the R script provided by popsizeABC to plot all pops in the same fig
+##here is an example for all pops #with default time windows
+
+######### DEFAULT GEN ##########
+
+
+## PUK DATA ##
+
+library(abc)
+source('generations.R')
+source('myfunctions.R')
+
+# loads simulated samples, MAF 20% for both AFS and LD stats
+infile_params="/scratch/kirstens/popsizeABC/res/Rfiles/Rinput/simdata/defaultgen_PUK_new.params"
+infile_stat="/scratch/kirstens/popsizeABC/res/Rfiles/Rinput/simdata/defaultgen_PUK_new.stat"
+n=14 # haploid sample size
+mac=1 # minor allele count
+source("load_simu.R")
+
+# loads observed samples
+infile_obs="/scratch/kirstens/popsizeABC/res/Rfiles/Rinput/popdata/defaultgen_allindVCF_PUK_n14_mac1_macld1.stat"
+source("load_obs.R")
+
+# choice of summary stats
+nb_afs=n/2-mac+2
+ind_afs=1:nb_afs
+ind_ld=nb_afs+(1:(nb_dist-1)) # the LD statistic corresponding to the shortest distance is removed
+ind_stat=c(ind_afs, ind_ld) # only AFS and LD statistics
+
+# abc
+abc_res_PUK=abc(obs[ind_stat],log10_pop(params)[,-1],stat[,ind_stat],tol=0.001,method="neuralnet") # a tolerance of order 0.001 would give much better results, but this would require more simulated samples.
+abc_estim_PUK=summary(abc_res_PUK,print=FALSE)[3,] # median
+#abc_estim_PUK=summary(abc_res,print=FALSE)[5,] #
+
+
+## MICH DATA ##
+# loads simulated samples, MAF 20% for both AFS and LD stats
+infile_params="/scratch/kirstens/popsizeABC/res/Rfiles/Rinput/simdata/defaultgen_MICH_500kbatches.params"
+infile_stat="/scratch/kirstens/popsizeABC/res/Rfiles/Rinput/simdata/defaultgen_MICH_500kbatches.stat"
+n=110 # haploid sample size
+mac=1 # minor allele count
+source("load_simu.R")
+
+# loads observed samples
+infile_obs="/scratch/kirstens/popsizeABC/res/Rfiles/Rinput/popdata/defaultgen_MICH_n110_mac1_macld1.stat"
+source("load_obs.R")
+
+# choice of summary stats
+nb_afs=n/2-mac+2
+ind_afs=1:nb_afs
+ind_ld=nb_afs+(1:(nb_dist-1)) # the LD statistic corresponding to the shortest distance is removed
+ind_stat=c(ind_afs, ind_ld) # only AFS and LD statistics
+
+# abc
+abc_res_MICH=abc(obs[ind_stat],log10_pop(params)[,-1],stat[,ind_stat],tol=0.001,method="neuralnet") # a tolerance of order 0.001 would give much better results, but this would require more simulated samples.
+abc_estim_MICH=summary(abc_res_MICH,print=FALSE)[3,] # median
+#abc_estim=summary(abc_res,print=FALSE)[5,] # mode
+
+## ON1 DATA ##
+# loads simulated samples, MAF 20% for both AFS and LD stats
+infile_params="/scratch/kirstens/popsizeABC/res/Rfiles/Rinput/simdata/defaultgen_ON1_500kbatches.params"
+infile_stat="/scratch/kirstens/popsizeABC/res/Rfiles/Rinput/simdata/defaultgen_ON1_500kbatches.stat"
+n=166 # haploid sample size
+mac=1 # minor allele count
+source("load_simu.R")
+
+# loads observed samples
+infile_obs="/scratch/kirstens/popsizeABC/res/Rfiles/Rinput/popdata/final_vcf_ON1_n166_mac1_macld1.stat"
+source("load_obs.R")
+
+# choice of summary stats
+nb_afs=n/2-mac+2
+ind_afs=1:nb_afs
+ind_ld=nb_afs+(1:(nb_dist-1)) # the LD statistic corresponding to the shortest distance is removed
+ind_stat=c(ind_afs, ind_ld) # only AFS and LD statistics
+
+# abc
+abc_res_ON1=abc(obs[ind_stat],log10_pop(params)[,-1],stat[,ind_stat],tol=0.001,method="neuralnet") # a tolerance of order 0.001 would give much better results, but this would require more simulated samples.
+abc_estim_ON1=summary(abc_res_ON1,print=FALSE)[3,] # median
+#abc_estim=summary(abc_res,print=FALSE)[5,] # mode
+
+
+## ON 2 DATA ##
+# loads simulated samples, MAF 20% for both AFS and LD stats
+infile_params="/scratch/kirstens/popsizeABC/res/Rfiles/Rinput/simdata/defaultgen_ON2_500kbatches.params"
+infile_stat="/scratch/kirstens/popsizeABC/res/Rfiles/Rinput/simdata/defaultgen_ON2_500kbatches.stat"
+n=32 # haploid sample size
+mac=1 # minor allele count
+source("load_simu.R")
+
+# loads observed samples
+infile_obs="/scratch/kirstens/popsizeABC/res/Rfiles/Rinput/popdata/defaultgen_vcf_ON2_n32_mac1_macld1.stat"
+source("load_obs.R")
+
+# choice of summary stats
+nb_afs=n/2-mac+2
+ind_afs=1:nb_afs
+ind_ld=nb_afs+(1:(nb_dist-1)) # the LD statistic corresponding to the shortest distance is removed
+ind_stat=c(ind_afs, ind_ld) # only AFS and LD statistics
+
+# abc
+abc_res_ON2=abc(obs[ind_stat],log10_pop(params)[,-1],stat[,ind_stat],tol=0.001,method="neuralnet") # a tolerance of order 0.001 would give much better results, but this would require more simulated samples.
+abc_estim_ON2=summary(abc_res_ON2,print=FALSE)[3,] # median
+#abc_estim=summary(abc_res,print=FALSE)[5,] # mode
+
+## ON3 DATA ##
+# loads simulated samples, MAF 20% for both AFS and LD stats
+infile_params="/scratch/kirstens/popsizeABC/res/Rfiles/Rinput/simdata/defaultgen_ON3_500kbatches.params"
+infile_stat="/scratch/kirstens/popsizeABC/res/Rfiles/Rinput/simdata/defaultgen_ON3_500kbatches.stat"
+n=72 # haploid sample size
+mac=1 # minor allele count
+source("load_simu.R")
+
+# loads observed samples
+infile_obs="/scratch/kirstens/popsizeABC/res/Rfiles/Rinput/popdata/defaultgen_vcf_ON3_n72_mac1_macld1.stat"
+source("load_obs.R")
+
+# choice of summary stats
+nb_afs=n/2-mac+2
+ind_afs=1:nb_afs
+ind_ld=nb_afs+(1:(nb_dist-1)) # the LD statistic corresponding to the shortest distance is removed
+ind_stat=c(ind_afs, ind_ld) # only AFS and LD statistics
+
+# abc
+abc_res_ON3=abc(obs[ind_stat],log10_pop(params)[,-1],stat[,ind_stat],tol=0.001,method="neuralnet") # a tolerance of order 0.001 would give much better results, but this would require more simulated samples.
+abc_estim_ON3=summary(abc_res_ON3,print=FALSE)[3,] # median
+#abc_estim=summary(abc_res,print=FALSE)[5,] # mode
+
+
+# plot
+pdf('defaultgen_5pops_500k_mac1_col.pdf',height=4,width=8)
+
+par(mar=c(3,3,1,2),cex=0.7,mgp=c(1.5,0.5,0))
+plot(NA,xlim=c(0,6),ylim=c(2,5),xlab="years before present (log scale)",ylab="effective population size (log scale)",axes=F)
+axis(1,at=0:6,labels=c("0","10","100","1,000","10,000","100,000", "1,000,000"))
+axis(2,at=c(2,log10(300),3,log10(3000),4,log10(30000),5),labels=c("100","300","1,000","3,000","10,000","30,000","100,000"))
+#
+#PLOT PUK
+lines(years,abc_estim_PUK[-1],type="s",lwd=2, col=c("#6CBAEF")) # the first term of the vector is removed because it corresponds to the recombination rate
+abc_q=summary(abc_res_PUK, print=FALSE, intvl=0.9)[2,] # 5% quantile
+print(abc_q)
+lines(years,abc_q[-1],type="s",lwd=2,lty=3, col=c("#6CBAEF"))
+abc_q=summary(abc_res_PUK,print=FALSE,intvl=0.9)[6,] # 95% quantile
+print(abc_q)
+lines(years,abc_q[-1],type="s",lwd=2,lty=3, col=c("#6CBAEF"))
+#
+#PLOT MICH
+lines(years,abc_estim_MICH[-1],type="s",lwd=2, col=c("#175676")) # the first term of the vector is removed because it corresponds to the recombination rate
+abc_q=summary(abc_res_MICH, print=FALSE, intvl=0.9)[2,] # 5% quantile
+print(abc_q)
+lines(years,abc_q[-1],type="s",lwd=2,lty=3, col=c("#175676"))
+abc_q=summary(abc_res_MICH,print=FALSE,intvl=0.9)[6,] # 95% quantile
+print(abc_q)
+lines(years,abc_q[-1],type="s",lwd=2,lty=3, col=c("#175676"))
+#
+#PLOT ON1
+lines(years,abc_estim_ON1[-1],type="s",lwd=2, col=c("#67180C")) # the first term of the vector is removed because it corresponds to the recombination rate
+abc_q=summary(abc_res_ON1, print=FALSE, intvl=0.9)[2,] # 5% quantile
+print(abc_q)
+lines(years,abc_q[-1],type="s",lwd=2,lty=3, col=c("#67180C"))
+abc_q=summary(abc_res_ON1,print=FALSE,intvl=0.9)[6,] # 95% quantile
+print(abc_q)
+lines(years,abc_q[-1],type="s",lwd=2,lty=3, col=c("#67180C"))
+#
+#PLOT ON2
+lines(years,abc_estim_ON2[-1],type="s",lwd=2, col=c("#CC8500")) # the first term of the vector is removed because it corresponds to the recombination rate
+abc_q=summary(abc_res_ON2, print=FALSE, intvl=0.9)[2,] # 5% quantile
+print(abc_q)
+lines(years,abc_q[-1],type="s",lwd=2,lty=3, col=c("#CC8500"))
+abc_q=summary(abc_res_ON2,print=FALSE,intvl=0.9)[6,] # 95% quantile
+print(abc_q)
+lines(years,abc_q[-1],type="s",lwd=2,lty=3, col=c("#CC8500"))
+#
+# PLOT ON3
+lines(years,abc_estim_ON3[-1],type="s",lwd=2, col=c("#E0D100")) # the first term of the vector is removed because it corresponds to the recombination rate
+abc_q=summary(abc_res_ON3, print=FALSE, intvl=0.9)[2,] # 5% quantile
+print(abc_q)
+lines(years,abc_q[-1],type="s",lwd=2,lty=3, col=c("#E0D100"))
+abc_q=summary(abc_res_ON3,print=FALSE,intvl=0.9)[6,] # 95% quantile
+print(abc_q)
+lines(years,abc_q[-1],type="s",lwd=2,lty=3, col=c("#E0D100"))
+
+
+dev.off()
